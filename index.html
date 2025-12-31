@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Time of Flight — New Year Countdown</title>
+
+  <!-- Icons -->
+  <link rel="icon" href="Web-icon.JPEG" type="image/jpeg" />
+  <link rel="apple-touch-icon" href="Web-icon.JPEG" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="screen" id="screen" aria-live="polite">
+    <div class="wrap">
+      <div class="badge" id="badge" role="status"></div>
+
+      <div class="timer" id="timer" aria-label="Countdown timer">
+        <div class="seconds" id="seconds">--</div>
+        <div class="label" id="label">seconds</div>
+      </div>
+
+      <div class="hint" id="hint">
+        If it hasn’t started yet, refresh near <span class="mono">11:59:40 PM</span>.
+      </div>
+
+      <div class="message" id="message" hidden></div>
+    </div>
+  </main>
+
+  <script>
+  (function () {
+    // Local-time behavior (uses the device clock). Intended for America/Los_Angeles around New Year.
+    // Countdown window: Dec 31, 2025 11:59:40 PM → Jan 1, 2026 12:00:00 AM (20 seconds).
+    // Celebration: Jan 1, 2026 → Jan 2, 2026 (shows "Happy New Year! 2026")
+    // After: shows "Come back Dec 31, 2026 11:59 PM"
+
+    const els = {
+      screen: document.getElementById('screen'),
+      badge: document.getElementById('badge'),
+      timer: document.getElementById('timer'),
+      seconds: document.getElementById('seconds'),
+      label: document.getElementById('label'),
+      hint: document.getElementById('hint'),
+      message: document.getElementById('message'),
+    };
+
+    function localDate(y, m, d, hh, mm, ss) {
+      // m is 1-12 for readability
+      return new Date(y, m - 1, d, hh, mm, ss, 0);
+    }
+
+    const start = localDate(2025, 12, 31, 23, 59, 40);
+    const end   = localDate(2026,  1,  1,  0,  0,  0);
+    const jan2  = localDate(2026,  1,  2,  0,  0,  0);
+
+    function setCountdownMode() {
+      document.body.classList.remove('celebration');
+      document.body.classList.add('countdown');
+      els.message.hidden = true;
+      els.timer.hidden = false;
+      els.hint.hidden = false;
+      els.badge.textContent = "Time of Flight";
+    }
+
+    function setCelebrationMode() {
+      document.body.classList.remove('countdown');
+      document.body.classList.add('celebration');
+      els.timer.hidden = true;
+      els.hint.hidden = true;
+      els.message.hidden = false;
+      els.badge.textContent = "Time of Flight";
+      els.message.innerHTML = '<div class="big">happy new year!</div><div class="year">2026</div>';
+    }
+
+    function setComeBackMode() {
+      document.body.classList.remove('countdown');
+      document.body.classList.remove('celebration');
+      document.body.classList.add('after');
+      els.timer.hidden = true;
+      els.hint.hidden = true;
+      els.message.hidden = false;
+      els.badge.textContent = "Time of Flight";
+      els.message.innerHTML = '<div class="afterline">Come back <span class="mono">December 31, 2026 — 11:59 PM</span>.</div>';
+    }
+
+    function paintSecond(n) {
+      els.seconds.textContent = String(n);
+
+      // Default countdown colors
+      els.seconds.classList.remove('bronze','silver','gold');
+
+      if (n === 3) els.seconds.classList.add('bronze');
+      if (n === 2) els.seconds.classList.add('silver');
+      if (n === 1) els.seconds.classList.add('gold');
+
+      els.label.textContent = (n === 1) ? 'second' : 'seconds';
+    }
+
+    function tick() {
+      const now = new Date();
+
+      if (now < start) {
+        setCountdownMode();
+        els.badge.textContent = "Refresh until it starts";
+        paintSecond(20);
+        return;
+      }
+
+      if (now >= start && now < end) {
+        setCountdownMode();
+
+        // Remaining seconds, synced to real time.
+        const remainingMs = end - now;
+        const remaining = Math.max(0, Math.ceil(remainingMs / 1000));
+
+        // remaining goes 20..1
+        paintSecond(remaining);
+
+        return;
+      }
+
+      if (now >= end && now < jan2) {
+        setCelebrationMode();
+        return;
+      }
+
+      setComeBackMode();
+    }
+
+    // Keep it smooth near the second boundaries.
+    function startLoop() {
+      tick();
+      setInterval(tick, 200);
+    }
+
+    startLoop();
+  })();
+  </script>
+</body>
+</html>
