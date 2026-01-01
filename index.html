@@ -3,140 +3,84 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Time of Flight — New Year Countdown</title>
+  <title>Time of Flight</title>
 
-  <!-- Icons -->
-  <link rel="icon" href="Web-icon.JPEG" type="image/jpeg" />
-  <link rel="apple-touch-icon" href="Web-icon.JPG" />
+  <link rel="icon" href="Web-icon.JPEG" type="image/jpeg">
+  <link rel="apple-touch-icon" href="Web-icon.JPEG">
 
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="screen" id="screen" aria-live="polite">
-    <div class="wrap">
-      <div class="badge" id="badge" role="status"></div>
-
-      <div class="timer" id="timer" aria-label="Countdown timer">
-        <div class="seconds" id="seconds">--</div>
-        <div class="label" id="label">seconds</div>
-      </div>
-
-      <div class="hint" id="hint">
-        If it hasn’t started yet, refresh near <span class="mono">11:59:40 PM</span>.
-      </div>
-
-      <div class="message" id="message" hidden></div>
-    </div>
-  </main>
+  <main class="wrap" id="app" aria-live="polite"></main>
 
   <script>
-  (function () {
-    // Local-time behavior (uses the device clock). Intended for America/Los_Angeles around New Year.
-    // Countdown window: Dec 31, 2025 11:59:40 PM → Jan 1, 2026 12:00:00 AM (20 seconds).
-    // Celebration: Jan 1, 2026 → Jan 2, 2026 (shows "Happy New Year! 2026")
-    // After: shows "Come back Dec 31, 2026 11:59 PM"
+    const app = document.getElementById('app');
 
-    const els = {
-      screen: document.getElementById('screen'),
-      badge: document.getElementById('badge'),
-      timer: document.getElementById('timer'),
-      seconds: document.getElementById('seconds'),
-      label: document.getElementById('label'),
-      hint: document.getElementById('hint'),
-      message: document.getElementById('message'),
-    };
+    function pad(n){ return String(n).padStart(2,'0'); }
 
-    function localDate(y, m, d, hh, mm, ss) {
-      // m is 1-12 for readability
-      return new Date(y, m - 1, d, hh, mm, ss, 0);
+    function ordinal(n){
+      const s=["th","st","nd","rd"],v=n%100;
+      return n+(s[(v-20)%10]||s[v]||s[0]);
     }
 
-    const start = localDate(2025, 12, 31, 23, 59, 40);
-    const end   = localDate(2026,  1,  1,  0,  0,  0);
-    const jan2  = localDate(2026,  1,  2,  0,  0,  0);
-
-    function setCountdownMode() {
-      document.body.classList.remove('celebration');
-      document.body.classList.add('countdown');
-      els.message.hidden = true;
-      els.timer.hidden = false;
-      els.hint.hidden = false;
-      els.badge.textContent = "Time of Flight";
+    function format(d){
+      const m=["January","February","March","April","May","June","July","August","September","October","November","December"];
+      const h24=d.getHours(), h12=(h24%12)||12;
+      return `${m[d.getMonth()]} ${ordinal(d.getDate())} ${d.getFullYear()} ${h12}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${h24>=12?'pm':'am'}`;
     }
 
-    function setCelebrationMode() {
-      document.body.classList.remove('countdown');
-      document.body.classList.add('celebration');
-      els.timer.hidden = true;
-      els.hint.hidden = true;
-      els.message.hidden = false;
-      els.badge.textContent = "Time of Flight";
-      els.message.innerHTML = '<div class="big">happy new year!</div><div class="year">2026</div>';
+    function windowFor(now){
+      const y=now.getFullYear();
+      const start=new Date(y,11,31,23,59,40);
+      const midnight=new Date(y+1,0,1,0,0,0);
+      const end=new Date(y+1,0,2,0,0,0);
+
+      if(now<start) return {mode:'wait',next:start};
+      if(now<midnight) return {mode:'countdown',midnight};
+      if(now<end) return {mode:'celebrate',year:y+1};
+
+      return {mode:'wait',next:new Date(y+1,11,31,23,59,40)};
     }
 
-    function setComeBackMode() {
-      document.body.classList.remove('countdown');
-      document.body.classList.remove('celebration');
-      document.body.classList.add('after');
-      els.timer.hidden = true;
-      els.hint.hidden = true;
-      els.message.hidden = false;
-      els.badge.textContent = "Time of Flight";
-      els.message.innerHTML = '<div class="afterline">Come back <span class="mono">December 31, 2026 — 11:59 PM</span>.</div>';
-    }
+    function render(){
+      const now=new Date();
+      const w=windowFor(now);
 
-    function paintSecond(n) {
-      els.seconds.textContent = String(n);
+      if(w.mode==='countdown'){
+        const s=Math.max(0,Math.ceil((w.midnight-now)/1000));
+        let c='white';
+        if(s===3)c='bronze';
+        if(s===2)c='silver';
+        if(s===1)c='gold';
 
-      // Default countdown colors
-      els.seconds.classList.remove('bronze','silver','gold');
-
-      if (n === 3) els.seconds.classList.add('bronze');
-      if (n === 2) els.seconds.classList.add('silver');
-      if (n === 1) els.seconds.classList.add('gold');
-
-      els.label.textContent = (n === 1) ? 'second' : 'seconds';
-    }
-
-    function tick() {
-      const now = new Date();
-
-      if (now < start) {
-        setCountdownMode();
-        els.badge.textContent = "Refresh until it starts";
-        paintSecond(20);
-        return;
+        app.className='wrap countdown';
+        app.innerHTML=`
+          <div class="card">
+            <div class="hint">Time of Flight</div>
+            <div class="timer ${c}">${s}</div>
+          </div>`;
       }
-
-      if (now >= start && now < end) {
-        setCountdownMode();
-
-        // Remaining seconds, synced to real time.
-        const remainingMs = end - now;
-        const remaining = Math.max(0, Math.ceil(remainingMs / 1000));
-
-        // remaining goes 20..1
-        paintSecond(remaining);
-
-        return;
+      else if(w.mode==='celebrate'){
+        app.className='wrap celebrate';
+        app.innerHTML=`
+          <div class="celebrate-inner">
+            <div class="bigline">happy new year!</div>
+            <div class="bigyear">${w.year}</div>
+          </div>`;
       }
-
-      if (now >= end && now < jan2) {
-        setCelebrationMode();
-        return;
+      else{
+        app.className='wrap pre';
+        app.innerHTML=`
+          <div class="card">
+            <div class="hint">Time of Flight</div>
+            <div class="title">Come back</div>
+            <div class="sub mono">${format(w.next)}</div>
+          </div>`;
       }
-
-      setComeBackMode();
     }
 
-    // Keep it smooth near the second boundaries.
-    function startLoop() {
-      tick();
-      setInterval(tick, 200);
-    }
-
-    startLoop();
-  })();
+    render();
+    setInterval(render,200);
   </script>
 </body>
 </html>
